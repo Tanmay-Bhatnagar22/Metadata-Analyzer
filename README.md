@@ -2,6 +2,10 @@
 
 A comprehensive desktop application for extracting, editing, and managing file metadata with a modern graphical user interface. Built with Python and Tkinter, this tool supports multiple file formats and provides powerful features for metadata analysis and reporting.
 
+![Python](https://img.shields.io/badge/python-3.7+-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)
+
 ## Overview
 
 Metadata Analyzer is a feature-rich application designed to extract, view, edit, and export metadata from various file types. The application maintains a history of all metadata extractions in a SQLite database and provides advanced filtering, searching, and reporting capabilities.
