@@ -160,7 +160,8 @@ Main GUI application class:
 
 ### Step 1: Clone or Download the Project
 ```bash
-cd "c:\Users\HP\.vscode\Tanmay-python\Metadata Analyser"
+git clone https://github.com/Tanmay-Bhatnagar22/Metadata-Analyzer.git
+cd Metadata-Analyzer
 ```
 
 ### Step 2: Create Virtual Environment (Recommended)
