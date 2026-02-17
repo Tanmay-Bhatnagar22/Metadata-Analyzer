@@ -271,6 +271,12 @@ class MetadataAnalyzerApp:
         
         # Bind canvas configure event to center image when canvas size changes
         self.preview_canvas.bind('<Configure>', self._on_canvas_configure)
+        
+        # Bind mousewheel for scrolling
+        def _on_preview_mousewheel(event):
+            self.preview_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        
+        self.preview_canvas.bind_all("<MouseWheel>", _on_preview_mousewheel)
 
         controls_side = Frame(report_container, bg="#f8f9fa", width=220)
         controls_side.pack(side=RIGHT, fill=Y, padx=2, pady=2)
@@ -1058,11 +1064,8 @@ class MetadataAnalyzerApp:
                 scroll_height = max(canvas_height, new_height)
                 self.preview_canvas.config(scrollregion=(0, 0, scroll_width, scroll_height))
                 
-                # Show/hide scrollbar based on whether image is larger than canvas
-                if new_height > canvas_height and self.preview_image_zoom > 1.0:
-                    self.preview_scrollbar.pack(side=RIGHT, fill=Y)
-                else:
-                    self.preview_scrollbar.pack_forget()
+                # Keep scrollbar hidden (mousewheel scrolling is enabled)
+                self.preview_scrollbar.pack_forget()
             
             # Update zoom display
             if hasattr(self, 'zoom_display_label') and self.zoom_display_label:
