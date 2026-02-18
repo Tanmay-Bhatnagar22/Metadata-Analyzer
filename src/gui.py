@@ -2033,8 +2033,18 @@ class MetadataAnalyzerApp:
 
         # Enable mouse wheel scrolling
         def on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            try:
+                # Check if canvas still exists and is valid
+                if canvas.winfo_exists():
+                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except Exception:
+                # Silently ignore errors if canvas is destroyed
+                pass
+        
         canvas.bind_all("<MouseWheel>", on_mousewheel)
+        
+        # Unbind mousewheel when window is destroyed to prevent errors
+        stats_window.bind("<Destroy>", lambda e: canvas.unbind_all("<MouseWheel>"))
 
         # Helper functions for filtering and calculations
         def parse_size_to_bytes(size_str):
