@@ -32,6 +32,12 @@ try:
 except ImportError:  # pragma: no cover - optional dependency
     editor = None
 
+# Try importing risk analyzer module for privacy risk and timeline analysis
+try:
+    import risk_analyzer
+except ImportError:  # pragma: no cover - optional dependency
+    risk_analyzer = None
+
 
 class MetadataAnalyzerApp:
     """Class-based GUI application for Metadata Analyzer.
@@ -40,6 +46,7 @@ class MetadataAnalyzerApp:
     - Extractor: Extract metadata from files
     - Editor: Edit and manage extracted metadata
     - History: View and manage extraction history
+    - Risk analyzer: Privacy risk scoring and forensic timeline visualization
     - Preview: Generate and view reports
     """
 
@@ -58,6 +65,7 @@ class MetadataAnalyzerApp:
         self.progress_bar = None
         self.nb_widget = None
         self.tab2_ref = None
+        self.tab5_ref = None
         self.tab4_ref = None
         self.editor_entry_fields = {}
         self.editor_entry_frame = None
@@ -70,6 +78,11 @@ class MetadataAnalyzerApp:
         self.preview_base_image = None  # Store original PIL image
         self.preview_canvas = None  # Canvas for scrollable image
         self.preview_scrollbar = None  # Scrollbar for preview canvas
+        self.risk_summary_text = None
+        self.risk_chart_canvas = None
+        self.timeline_chart_canvas = None
+        self.risk_analysis = None
+        self.risk_batch_summary = None
 
         # Layout info
         self.window_width = None
@@ -144,6 +157,7 @@ class MetadataAnalyzerApp:
         tab1 = Frame(nb, bg="#ffffff")
         tab2 = Frame(nb, bg="#ffffff")
         tab3 = Frame(nb, bg="#ffffff")
+        tab5 = Frame(nb, bg="#ffffff")
         tab4 = Frame(nb, bg="#ffffff")
 
         nb.add(tab1, text="Extractor")
@@ -165,13 +179,14 @@ class MetadataAnalyzerApp:
 
         ttk.Button(controls_frame, text="Choose File", command=self.choose_file).pack(side=LEFT, padx=10, pady=10)
         ttk.Button(controls_frame, text="Extract", command=self.extract_metadata).pack(side=LEFT, padx=10, pady=10)
-        ttk.Button(controls_frame, text="Generate Report", command=self.generate_report).pack(side=LEFT, padx=10, pady=10)
         ttk.Button(controls_frame, text="Editor", command=self.open_editor_with_current_metadata).pack(side=LEFT, padx=10, pady=10)
+        ttk.Button(controls_frame, text="Risk Analyzer", command=self.open_risk_analyzer_with_scan).pack(side=LEFT, padx=10, pady=10)
+        ttk.Button(controls_frame, text="Generate Report", command=self.generate_report).pack(side=LEFT, padx=10, pady=10)
 
         # Progress bar for file operations
         self.progress_var = DoubleVar()
-        self.progress_bar = ttk.Progressbar(controls_frame, variable=self.progress_var, maximum=100, mode="indeterminate", length=250)
-        self.progress_bar.pack(side=LEFT, fill=X, expand=True, padx=(15, 10), pady=10)
+        self.progress_bar = ttk.Progressbar(controls_frame, variable=self.progress_var, maximum=100, mode="indeterminate", length=40)
+        self.progress_bar.pack(side=LEFT, fill=X, expand=True, padx=(12, 10), pady=10)
 
         # Status bar for messages
         self.status_var = StringVar()
@@ -229,6 +244,11 @@ class MetadataAnalyzerApp:
 
         # History tab
         nb.add(tab3, text="History")
+
+        # Risk analyzer tab
+        nb.add(tab5, text="Risk analyzer")
+        self.tab5_ref = tab5
+        self._build_risk_tab(tab5)
 
         # Report tab: preview on the left, controls on the right
         nb.add(tab4, text="Preview")
@@ -297,7 +317,7 @@ class MetadataAnalyzerApp:
         # History tab widgets
         self._build_history_tab(tab3)
 
-        nb.bind("<<NotebookTabChanged>>", lambda e: self._on_tab_changed(e, tab2, tab3))
+        nb.bind("<<NotebookTabChanged>>", lambda e: self._on_tab_changed(e, tab2, tab3, tab5))
 
     def _build_history_tab(self, tab3: Frame) -> None:
         """Construct history tab with search/filter/export controls.
@@ -519,6 +539,19 @@ class MetadataAnalyzerApp:
             except Exception:
                 self.extracted_metadata = {}
 
+            if risk_analyzer and isinstance(self.extracted_metadata, dict):
+                try:
+                    self.risk_analysis = risk_analyzer.analyze_metadata(
+                        self.extracted_metadata,
+                        self.file_path,
+                        fallback_timestamps=self._get_timeline_fallbacks(
+                            extracted_at=row[5] if len(row) > 5 else None,
+                            modified_on=row[6] if len(row) > 6 else None,
+                        ),
+                    )
+                except Exception:
+                    self.risk_analysis = None
+
             def humanize_local(dt_str: str) -> str:
                 if not dt_str:
                     return ""
@@ -560,10 +593,210 @@ class MetadataAnalyzerApp:
         load_data()
         self.history_refresh = load_data
 
+    def _build_risk_tab(self, tab5: Frame) -> None:
+        """Construct Risk analyzer tab using stacked charts on left and summary panel on right."""
+        container = Frame(tab5, bg="#ffffff", relief=SOLID, bd=1)
+        container.pack(fill=BOTH, expand=True, padx=8, pady=8)
+
+        left_panel = Frame(container, bg="#ffffff")
+        left_panel.pack(side=LEFT, fill=BOTH, expand=True, padx=(10, 8), pady=10)
+
+        right_column = Frame(container, bg="#ffffff", width=340)
+        right_column.pack(side=RIGHT, fill=BOTH, expand=False, padx=(8, 10), pady=10)
+        right_column.pack_propagate(False)
+
+        Label(left_panel, text="Risk Meter", bg="#ffffff", font=("Segoe UI", 11, "bold"), fg="#1a1a1a", anchor=W).pack(fill=X, padx=2, pady=(0, 4))
+        risk_meter_frame = Frame(left_panel, bg="#ffffff", relief=SOLID, bd=1, height=200)
+        risk_meter_frame.pack(fill=X, expand=False)
+        risk_meter_frame.pack_propagate(False)
+
+        Label(left_panel, text="Forensic Timeline", bg="#ffffff", font=("Segoe UI", 11, "bold"), fg="#1a1a1a", anchor=W).pack(fill=X, padx=2, pady=(12, 4))
+        timeline_frame = Frame(left_panel, bg="#ffffff", relief=SOLID, bd=1)
+        timeline_frame.pack(fill=BOTH, expand=True)
+
+        Label(right_column, text="Comments", bg="#ffffff", font=("Segoe UI", 11, "bold"), fg="#1a1a1a", anchor=W).pack(fill=X, padx=2, pady=(0, 4))
+        comments_frame = Frame(right_column, bg="#ffffff", relief=SOLID, bd=1)
+        comments_frame.pack(fill=BOTH, expand=True)
+
+        self.risk_chart_canvas = FigureCanvasTkAgg(Figure(figsize=(6.0, 2.4), facecolor="white"), master=risk_meter_frame)
+        self.risk_chart_canvas.get_tk_widget().pack(fill=BOTH, expand=True, padx=8, pady=8)
+
+        self.timeline_chart_canvas = FigureCanvasTkAgg(Figure(figsize=(6.0, 2.6), facecolor="white"), master=timeline_frame)
+        self.timeline_chart_canvas.get_tk_widget().pack(fill=BOTH, expand=True, padx=8, pady=8)
+
+        self.risk_summary_text = scrolledtext.ScrolledText(comments_frame, wrap=WORD, bg="#f5f5f5", font=("Segoe UI", 10), fg="#333333", bd=0, relief=FLAT, padx=10, pady=10)
+        self.risk_summary_text.pack(fill=BOTH, expand=True)
+        self.risk_summary_text.config(state=DISABLED)
+
+        self._render_risk_analysis(None)
+
+    def _render_risk_analysis(self, analysis: dict | None) -> None:
+        """Render risk gauge, reasons and timeline chart in Risk analyzer tab."""
+        if self.risk_summary_text and self.risk_summary_text.winfo_exists():
+            self.risk_summary_text.config(state=NORMAL)
+            self.risk_summary_text.delete(1.0, END)
+
+        if not analysis:
+            if self.risk_chart_canvas:
+                fig = Figure(figsize=(6.0, 2.4), facecolor="white")
+                ax = fig.add_subplot(111)
+                ax.axis("off")
+                ax.text(0.5, 0.5, "No risk scan available.\nExtract metadata to analyze.", ha="center", va="center", fontsize=11)
+                self.risk_chart_canvas.figure = fig
+                self.risk_chart_canvas.draw()
+
+            if self.timeline_chart_canvas:
+                fig = Figure(figsize=(6.0, 2.6), facecolor="white")
+                ax = fig.add_subplot(111)
+                ax.axis("off")
+                ax.text(0.5, 0.5, "No timeline events available.", ha="center", va="center", fontsize=11)
+                self.timeline_chart_canvas.figure = fig
+                self.timeline_chart_canvas.draw()
+
+            if self.risk_summary_text and self.risk_summary_text.winfo_exists():
+                self.risk_summary_text.insert(END, "Risk Level: N/A\nRisk Score: N/A\n\nRun extraction to view risk reasons and forensic timeline.")
+                self.risk_summary_text.config(state=DISABLED)
+            return
+
+        score = int(analysis.get("risk_score", 0))
+        level = analysis.get("risk_level", "LOW")
+        reasons = analysis.get("reasons", [])
+        timeline = analysis.get("timeline", [])
+        anomalies = analysis.get("anomalies", [])
+
+        if self.risk_chart_canvas:
+            fig = Figure(figsize=(6.0, 2.4), facecolor="white")
+            ax = fig.add_subplot(111)
+            color_map = {"LOW": "#2ecc71", "MEDIUM": "#f39c12", "HIGH": "#e74c3c"}
+            risk_color = color_map.get(level, "#3498db")
+            
+            # Full semicircle fill with solid color based on risk level
+            full_fill = plt.matplotlib.patches.Wedge((0, 0), 1.0, 0, 180, width=1.0, facecolor=risk_color, edgecolor="none", alpha=0.85, zorder=2)
+            ax.add_patch(full_fill)
+            
+            # Semicircle outline
+            outline = plt.matplotlib.patches.Wedge((0, 0), 1.0, 0, 180, width=0.04, facecolor="none", edgecolor="#9ca3af", zorder=3)
+            ax.add_patch(outline)
+            ax.plot([1, -1], [0, 0], color="#9ca3af", linewidth=2, zorder=3)
+
+            # Center labels - moved upward
+            ax.text(0, 0.35, f"{score}%", ha="center", va="center", fontsize=30, weight="bold", color="#1f2937")
+            ax.text(0, 0.10, f"Risk: {level}", ha="center", va="center", fontsize=12, color="#4b5563")
+
+            ax.set_title("Privacy Risk Gauge", fontsize=11, weight="bold", y=0.95, pad=2)
+            ax.set_xlim(-1.25, 1.25)
+            ax.set_ylim(-0.25, 1.25)
+            ax.axis("off")
+            self.risk_chart_canvas.figure = fig
+            self.risk_chart_canvas.draw()
+
+        if self.timeline_chart_canvas:
+            fig = Figure(figsize=(6.0, 2.6), facecolor="white")
+            ax = fig.add_subplot(111)
+            if timeline:
+                # Convert timeline to trend chart
+                from datetime import datetime
+                
+                # Parse timestamps and sort
+                events_with_dates = []
+                for event in timeline:
+                    try:
+                        ts_str = event.get("timestamp", "")
+                        # Try to parse various date formats
+                        for fmt in ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%b %d, %Y"]:
+                            try:
+                                dt = datetime.strptime(ts_str[:19], fmt[:19])
+                                events_with_dates.append((dt, event.get("event", "")))
+                                break
+                            except ValueError:
+                                continue
+                    except Exception:
+                        pass
+                
+                if events_with_dates:
+                    # Group events by date and collect event names
+                    from collections import defaultdict
+                    date_events = defaultdict(list)
+                    for dt, event_name in events_with_dates:
+                        date_key = dt.date()
+                        date_events[date_key].append(event_name)
+                    
+                    # Sort by date
+                    sorted_dates = sorted(date_events.keys())
+                    counts = [len(date_events[d]) for d in sorted_dates]
+                    
+                    # Get first event name for each date
+                    event_labels = []
+                    for d in sorted_dates:
+                        events = date_events[d]
+                        # Prioritize showing specific event types
+                        label = events[0] if events else ""
+                        # Clean up the label - capitalize and shorten common terms
+                        label = label.replace("_", " ").title()
+                        if "create" in label.lower():
+                            label = "Creation"
+                        elif "modif" in label.lower():
+                            label = "Modification"
+                        elif "extract" in label.lower():
+                            label = "Extraction"
+                        event_labels.append(label)
+                    
+                    # Convert dates to strings for display
+                    full_date_labels = [d.strftime("%Y-%m-%d") for d in sorted_dates]
+                    x_vals = list(range(len(sorted_dates)))
+                    
+                    # Plot line chart with area fill
+                    ax.fill_between(x_vals, counts, alpha=0.4, color="#6b9effe6", zorder=1)
+                    ax.plot(x_vals, counts, color="#4facfe", linewidth=2.5, marker="o", markersize=8, zorder=2)
+                    
+                    # Label each node with date and event type
+                    for x, count, full_date, event_label in zip(x_vals, counts, full_date_labels, event_labels):
+                        # Show date on top
+                        ax.text(x, count + 0.2, full_date, ha="center", va="bottom", fontsize=8, color="#333333", weight="bold")
+                        # Show event type below the date (slightly lower)
+                        if event_label:
+                            ax.text(x, count + 0.05, event_label, ha="center", va="bottom", fontsize=7, color="#666666", style="italic")
+                    
+                    # Styling - hide x-axis labels and y-axis
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    ax.grid(axis="y", alpha=0.15, linestyle="-")
+                    ax.spines["top"].set_visible(False)
+                    ax.spines["right"].set_visible(False)
+                    ax.spines["left"].set_visible(False)
+                else:
+                    ax.axis("off")
+                    ax.text(0.5, 0.5, "Unable to parse timeline dates.", ha="center", va="center", fontsize=10)
+            else:
+                ax.axis("off")
+                ax.text(0.5, 0.5, "No timeline events discovered from metadata.", ha="center", va="center", fontsize=10)
+            fig.tight_layout()
+            self.timeline_chart_canvas.figure = fig
+            self.timeline_chart_canvas.draw()
+
+        if self.risk_summary_text and self.risk_summary_text.winfo_exists():
+            self.risk_summary_text.insert(END, f"Risk Level: {level}\n")
+            self.risk_summary_text.insert(END, f"Risk Score: {score}/100\n")
+            self.risk_summary_text.insert(END, f"Timeline Events: {len(timeline)}\n")
+            self.risk_summary_text.insert(END, f"Anomalies: {len(anomalies)}\n\n")
+
+            self.risk_summary_text.insert(END, "Why this risk:\n")
+            for reason in reasons:
+                self.risk_summary_text.insert(END, f"• {reason}\n")
+
+            if self.risk_batch_summary:
+                counts = self.risk_batch_summary.get("risk_counts", {})
+                self.risk_summary_text.insert(END, "\nBatch Summary:\n")
+                self.risk_summary_text.insert(END, f"• LOW: {counts.get('LOW', 0)}\n")
+                self.risk_summary_text.insert(END, f"• MEDIUM: {counts.get('MEDIUM', 0)}\n")
+                self.risk_summary_text.insert(END, f"• HIGH: {counts.get('HIGH', 0)}\n")
+
+            self.risk_summary_text.config(state=DISABLED)
+
     # ------------------------------------------------------------------
     # Tab and editor helpers
     # ------------------------------------------------------------------
-    def _on_tab_changed(self, event, tab2: Frame, tab3: Frame) -> None:
+    def _on_tab_changed(self, event, tab2: Frame, tab3: Frame, tab5: Frame) -> None:
         """Handle notebook tab changes for refresh logic.
         
         Updates history data when history tab is activated.
@@ -572,12 +805,15 @@ class MetadataAnalyzerApp:
             event: Tkinter event object from tab changed event.
             tab2 (Frame): Editor tab frame.
             tab3 (Frame): History tab frame.
+            tab5 (Frame): Risk analyzer tab frame.
         """
         try:
             current = self.nb_widget.select()
             if current == str(tab3):
                 if callable(self.history_refresh):
                     self.history_refresh()
+            elif current == str(tab5):
+                self._render_risk_analysis(self.risk_analysis)
             elif current == str(tab2):
                 if not self.file_path or not self.extracted_metadata:
                     messagebox.showwarning("No Data", "Please extract metadata first.")
@@ -641,6 +877,25 @@ class MetadataAnalyzerApp:
         self.c1_text.insert(END, "1. Click 'Choose File' to select a file\n2. Click 'Extract' to analyze its metadata\n3. Use 'Generate report' to export the results\n\n")
         self.c1_text.insert(END, "For more information, refer to the Help section in the menu bar.", "bold")
         self.c1_text.config(state=DISABLED)
+
+    def _get_timeline_fallbacks(self, extracted_at: str | None = None, modified_on: str | None = None) -> dict:
+        """Build fallback timestamps when metadata has no timeline fields."""
+        fallback = {}
+        if self.file_path and os.path.exists(self.file_path):
+            try:
+                fallback["Created Date"] = datetime.fromtimestamp(os.path.getctime(self.file_path)).isoformat(sep=" ", timespec="seconds")
+            except Exception:
+                pass
+            try:
+                fallback["Modified Date"] = datetime.fromtimestamp(os.path.getmtime(self.file_path)).isoformat(sep=" ", timespec="seconds")
+            except Exception:
+                pass
+
+        if modified_on and "Modified Date" not in fallback:
+            fallback["Modified Date"] = modified_on
+
+        fallback["Extraction Date"] = extracted_at or datetime.now().isoformat(sep=" ", timespec="seconds")
+        return fallback
 
     # ------------------------------------------------------------------
     # Status helpers
@@ -730,10 +985,23 @@ class MetadataAnalyzerApp:
 
             self.extracted_metadata, db_row = extractor.extract_and_store(self.file_path)
 
+            if risk_analyzer and isinstance(self.extracted_metadata, dict) and "Error" not in self.extracted_metadata:
+                try:
+                    self.risk_analysis = risk_analyzer.analyze_metadata(
+                        self.extracted_metadata,
+                        self.file_path,
+                        fallback_timestamps=self._get_timeline_fallbacks(extracted_at=datetime.now().isoformat(sep=" ", timespec="seconds")),
+                    )
+                except Exception:
+                    self.risk_analysis = None
+            else:
+                self.risk_analysis = None
+
             if self.progress_bar:
                 self.progress_bar.stop()
 
             self._display_extracted_metadata(self.extracted_metadata, self.file_path, db_row)
+            self._render_risk_analysis(self.risk_analysis)
 
             if isinstance(self.extracted_metadata, dict) and "Error" not in self.extracted_metadata:
                 self.set_status(f"Successfully extracted {len(self.extracted_metadata)} metadata fields")
@@ -761,7 +1029,18 @@ class MetadataAnalyzerApp:
             messagebox.showwarning("No Data", "Please extract metadata first before generating a report.")
             return
         try:
-            metadata_text = report.generate_report_text(self.extracted_metadata, self.file_path)
+            if risk_analyzer and isinstance(self.extracted_metadata, dict):
+                self.risk_analysis = risk_analyzer.analyze_metadata(
+                    self.extracted_metadata,
+                    self.file_path,
+                    fallback_timestamps=self._get_timeline_fallbacks(extracted_at=datetime.now().isoformat(sep=" ", timespec="seconds")),
+                )
+            metadata_text = report.generate_report_text(
+                self.extracted_metadata,
+                self.file_path,
+                risk_analysis=self.risk_analysis,
+                batch_summary=self.risk_batch_summary,
+            )
             self.update_report_preview(metadata_text)
             self.set_status("Report preview ready")
         except Exception as e:
@@ -791,6 +1070,52 @@ class MetadataAnalyzerApp:
         if self.nb_widget is not None and self.tab2_ref is not None:
             self.nb_widget.select(self.tab2_ref)
 
+    def open_risk_analyzer_with_scan(self) -> None:
+        """Open Risk analyzer tab and scan current file metadata for privacy/forensic risk."""
+        if not self.file_path:
+            messagebox.showwarning("No File Selected", "Please choose a file first.")
+            return
+
+        if not risk_analyzer:
+            messagebox.showerror("Error", "Risk analyzer module not available.")
+            return
+
+        if not self.extracted_metadata or not isinstance(self.extracted_metadata, dict) or "Error" in self.extracted_metadata:
+            if not extractor:
+                messagebox.showerror("Error", "Extractor module not available.")
+                return
+            try:
+                self.set_status("Extracting metadata for risk scan...")
+                if self.progress_bar:
+                    self.progress_bar.start()
+                self.extracted_metadata, db_row = extractor.extract_and_store(self.file_path)
+                if self.progress_bar:
+                    self.progress_bar.stop()
+                self._display_extracted_metadata(self.extracted_metadata, self.file_path, db_row)
+                if callable(self.history_refresh):
+                    self.history_refresh()
+            except Exception as exc:
+                if self.progress_bar:
+                    self.progress_bar.stop()
+                messagebox.showerror("Risk Scan Error", f"Failed to extract metadata before risk scan: {exc}")
+                return
+
+        try:
+            self.risk_analysis = risk_analyzer.analyze_metadata(
+                self.extracted_metadata,
+                self.file_path,
+                fallback_timestamps=self._get_timeline_fallbacks(extracted_at=datetime.now().isoformat(sep=" ", timespec="seconds")),
+            )
+            self._render_risk_analysis(self.risk_analysis)
+
+            if self.nb_widget is not None and self.tab5_ref is not None:
+                self.nb_widget.select(self.tab5_ref)
+
+            level = self.risk_analysis.get("risk_level", "N/A") if isinstance(self.risk_analysis, dict) else "N/A"
+            self.set_status(f"Risk scan complete: {level}")
+        except Exception as exc:
+            messagebox.showerror("Risk Scan Error", f"Failed to analyze risk: {exc}")
+
     def choose_file(self) -> None:
         """Open file dialog for user to select a file to analyze.
         
@@ -809,6 +1134,8 @@ class MetadataAnalyzerApp:
         selected_file = filedialog.askopenfilename(filetypes=filetypes)
         if selected_file:
             self.file_path = selected_file
+            self.extracted_metadata = {}
+            self.risk_analysis = None
             if self.progress_bar:
                 self.progress_bar.start()
                 self.root.after(2000, lambda: self.progress_bar.stop())
@@ -1131,6 +1458,16 @@ class MetadataAnalyzerApp:
             file_success, file_message = editor.write_metadata_to_file(self.file_path, edited_metadata)
 
             self.extracted_metadata = edited_metadata
+            if risk_analyzer:
+                try:
+                    self.risk_analysis = risk_analyzer.analyze_metadata(
+                        self.extracted_metadata,
+                        self.file_path,
+                        fallback_timestamps=self._get_timeline_fallbacks(extracted_at=datetime.now().isoformat(sep=" ", timespec="seconds")),
+                    )
+                except Exception:
+                    self.risk_analysis = None
+            self._render_risk_analysis(self.risk_analysis)
 
             if file_success:
                 self.editor_status.config(text="Saved to database and file", fg="#28a745")
@@ -1288,7 +1625,10 @@ class MetadataAnalyzerApp:
         if messagebox.askyesno("New Project", "Start a new project? This will clear current data."):
             self.file_path = None
             self.extracted_metadata = {}
+            self.risk_analysis = None
+            self.risk_batch_summary = None
             self._show_welcome_text()
+            self._render_risk_analysis(None)
             self._clear_editor_fields()
             self.set_status("Ready")
 
@@ -1336,11 +1676,13 @@ class MetadataAnalyzerApp:
         if messagebox.askyesno("Clear Data", "Clear all extracted metadata?"):
             self.extracted_metadata = {}
             self.file_path = None
+            self.risk_analysis = None
             if self.c1_text:
                 self.c1_text.config(state=NORMAL)
                 self.c1_text.delete(1.0, END)
                 self.c1_text.insert(END, "Data cleared. Ready to start.\n")
                 self.c1_text.config(state=DISABLED)
+            self._render_risk_analysis(None)
             self._clear_editor_fields()
             self.set_status("Data cleared")
 
@@ -1809,16 +2151,35 @@ class MetadataAnalyzerApp:
             try:
                 processed = 0
                 failed = 0
+                batch_entries = []
                 for path in file_list:
                     try:
                         if extractor:
-                            extractor.extract_and_store(path)
-                            processed += 1
+                            metadata, _ = extractor.extract_and_store(path)
+                            if isinstance(metadata, dict) and "Error" not in metadata:
+                                processed += 1
+                                batch_entries.append({"file_path": path, "metadata": metadata})
+                            else:
+                                failed += 1
                     except Exception:
                         failed += 1
 
                 result_msg = f"Processed: {processed} files\nFailed: {failed} files"
+                if risk_analyzer and batch_entries:
+                    try:
+                        self.risk_batch_summary = risk_analyzer.analyze_batch(batch_entries)
+                        counts = self.risk_batch_summary.get("risk_counts", {})
+                        result_msg += (
+                            "\n\nRisk Summary:"
+                            f"\nLOW: {counts.get('LOW', 0)}"
+                            f"\nMEDIUM: {counts.get('MEDIUM', 0)}"
+                            f"\nHIGH: {counts.get('HIGH', 0)}"
+                        )
+                    except Exception:
+                        self.risk_batch_summary = None
+
                 messagebox.showinfo("Batch Process Complete", result_msg)
+                self._render_risk_analysis(self.risk_analysis)
                 if callable(self.history_refresh):
                     self.history_refresh()
                 batch_window.destroy()
@@ -2118,7 +2479,8 @@ class MetadataAnalyzerApp:
                 'file_sizes': [],
                 'sizes_by_type': defaultdict(list),
                 'dates': [],
-                'files_by_date': defaultdict(int)
+                'files_by_date': defaultdict(int),
+                'risk_counts': {'LOW': 0, 'MEDIUM': 0, 'HIGH': 0}
             }
             
             for record in records:
@@ -2136,6 +2498,24 @@ class MetadataAnalyzerApp:
                         date_key = date_obj.strftime('%Y-%m-%d')
                         stats['dates'].append(date_obj)
                         stats['files_by_date'][date_key] += 1
+                    except Exception:
+                        pass
+
+                if risk_analyzer and len(record) > 7 and record[7]:
+                    try:
+                        parsed_metadata = json.loads(record[7]) if isinstance(record[7], str) else (record[7] or {})
+                        record_path = record[1] if len(record) > 1 else ""
+                        risk_result = risk_analyzer.analyze_metadata(
+                            parsed_metadata,
+                            record_path,
+                            fallback_timestamps={
+                                "Created Date": datetime.fromtimestamp(os.path.getctime(record_path)).isoformat(sep=" ", timespec="seconds") if record_path and os.path.exists(record_path) else None,
+                                "Modified Date": record[6] if len(record) > 6 else None,
+                                "Extraction Date": record[5] if len(record) > 5 else None,
+                            },
+                        )
+                        risk_level = risk_result.get('risk_level', 'LOW')
+                        stats['risk_counts'][risk_level] = stats['risk_counts'].get(risk_level, 0) + 1
                     except Exception:
                         pass
             
@@ -2231,6 +2611,19 @@ class MetadataAnalyzerApp:
             most_common_type = max(stats['file_types'].items(), key=lambda x: x[1]) if stats['file_types'] else ("N/A", 0)
             self._create_metric_card(cards_row2, "Top Format", most_common_type[0],
                                     f"{most_common_type[1]} files", "#fa709a", "#764ba2").pack(side=LEFT, fill=BOTH, expand=True, padx=3)
+
+            # Risk metrics row
+            cards_container3 = Frame(scrollable_frame, bg="#f0f2f5")
+            cards_container3.pack(fill=X, padx=10, pady=8)
+            cards_row3 = Frame(cards_container3, bg="#f0f2f5")
+            cards_row3.pack(fill=X)
+
+            self._create_metric_card(cards_row3, "High Risk Files", str(stats['risk_counts'].get('HIGH', 0)),
+                                    "Privacy alerts", "#e74c3c", "#c0392b").pack(side=LEFT, fill=BOTH, expand=True, padx=3)
+            self._create_metric_card(cards_row3, "Medium Risk Files", str(stats['risk_counts'].get('MEDIUM', 0)),
+                                    "Needs review", "#f39c12", "#d35400").pack(side=LEFT, fill=BOTH, expand=True, padx=3)
+            self._create_metric_card(cards_row3, "Low Risk Files", str(stats['risk_counts'].get('LOW', 0)),
+                                    "Safer metadata", "#27ae60", "#16a085").pack(side=LEFT, fill=BOTH, expand=True, padx=3)
 
             # Additional charts section - maximize space usage
             charts_section1 = Frame(scrollable_frame, bg="#f0f2f5")

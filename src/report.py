@@ -50,7 +50,7 @@ class MetadataReporter:
             return candidate
         return MetadataReporter.resource_path(filename)
 
-    def generate_report_text(self, extracted_metadata, file_path):
+    def generate_report_text(self, extracted_metadata, file_path, risk_analysis=None, batch_summary=None):
         """Build plain-text report from metadata and file info.
         
         Creates a formatted text report with file headers and metadata key-value pairs.
@@ -103,7 +103,47 @@ class MetadataReporter:
             elif extracted_metadata:
                 metadata_lines.append(str(extracted_metadata))
 
-            metadata_text = "\n".join(header_lines + [""] + metadata_lines)
+            extra_sections = []
+            if isinstance(risk_analysis, dict):
+                risk_lines = [
+                    "Privacy Risk Analysis",
+                    f"Risk Level: {risk_analysis.get('risk_level', 'N/A')}",
+                    f"Risk Score: {risk_analysis.get('risk_score', 'N/A')}/100",
+                    f"Timeline Events: {risk_analysis.get('event_count', len(risk_analysis.get('timeline', [])))}",
+                ]
+                reasons = risk_analysis.get("reasons", []) or []
+                if reasons:
+                    risk_lines.append("Risk Reasons:")
+                    for reason in reasons:
+                        risk_lines.append(f"- {reason}")
+
+                timeline = risk_analysis.get("timeline", []) or []
+                if timeline:
+                    risk_lines.append("Forensic Timeline:")
+                    for event in timeline:
+                        risk_lines.append(f"- {event.get('event', 'Event')}: {event.get('timestamp', '')}")
+
+                extra_sections.append("\n".join(risk_lines))
+
+            if isinstance(batch_summary, dict):
+                counts = batch_summary.get("risk_counts", {})
+                batch_lines = [
+                    "Batch Risk Summary",
+                    f"Total Files: {batch_summary.get('total_files', 0)}",
+                    f"LOW: {counts.get('LOW', 0)}",
+                    f"MEDIUM: {counts.get('MEDIUM', 0)}",
+                    f"HIGH: {counts.get('HIGH', 0)}",
+                ]
+                folders = batch_summary.get("folders", {})
+                if folders:
+                    batch_lines.append("Folder Breakdown:")
+                    for folder, values in folders.items():
+                        batch_lines.append(
+                            f"- {folder}: total={values.get('total', 0)}, low={values.get('LOW', 0)}, medium={values.get('MEDIUM', 0)}, high={values.get('HIGH', 0)}"
+                        )
+                extra_sections.append("\n".join(batch_lines))
+
+            metadata_text = "\n\n".join(["\n".join(header_lines + [""] + metadata_lines)] + extra_sections)
             return metadata_text
         except Exception:
             return "Metadata Report\n(No details available)"
@@ -471,9 +511,9 @@ def get_asset_path(filename):
     return _reporter.get_asset_path(filename)
 
 
-def generate_report_text(extracted_metadata, file_path):
+def generate_report_text(extracted_metadata, file_path, risk_analysis=None, batch_summary=None):
     """Wrapper: Build plain-text report from metadata and file info."""
-    return _reporter.generate_report_text(extracted_metadata, file_path)
+    return _reporter.generate_report_text(extracted_metadata, file_path, risk_analysis=risk_analysis, batch_summary=batch_summary)
 
 
 def print_metadata_report(metadata_text):

@@ -108,6 +108,26 @@ def test_generate_report_text_nonexistent_file(sample_metadata):
     assert isinstance(text, str)
 
 
+def test_generate_report_text_with_risk_section(sample_metadata):
+    """Test report generation includes risk and timeline sections when provided."""
+    reporter = MetadataReporter()
+    risk_analysis = {
+        "risk_level": "HIGH",
+        "risk_score": 80,
+        "event_count": 2,
+        "reasons": ["GPS present", "Author present"],
+        "timeline": [
+            {"event": "CreateDate", "timestamp": "2024-01-01 10:00:00"},
+            {"event": "ModifyDate", "timestamp": "2024-01-02 11:00:00"},
+        ],
+    }
+    text = reporter.generate_report_text(sample_metadata, "test.txt", risk_analysis=risk_analysis)
+
+    assert "Privacy Risk Analysis" in text
+    assert "Forensic Timeline" in text
+    assert "Risk Level: HIGH" in text
+
+
 def test_create_pdf_report_from_text(temp_dir, sample_metadata):
     """Test creating PDF report from text."""
     reporter = MetadataReporter()

@@ -102,6 +102,7 @@ def test_app_initialization_values(app):
     assert app.progress_bar is None
     assert app.nb_widget is None
     assert app.tab2_ref is None
+    assert app.tab5_ref is None
     assert app.tab4_ref is None
     assert app.editor_entry_fields == {}
     assert app.editor_entry_frame is None
@@ -130,6 +131,11 @@ def test_app_zoom_attributes(app):
     assert app.preview_canvas is None
     assert hasattr(app, 'preview_scrollbar')
     assert app.preview_scrollbar is None
+    assert app.risk_summary_text is None
+    assert app.risk_chart_canvas is None
+    assert app.timeline_chart_canvas is None
+    assert app.risk_analysis is None
+    assert app.risk_batch_summary is None
 
 
 # Backward compatibility wrapper
