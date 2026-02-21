@@ -238,9 +238,22 @@ class MetadataAnalyzerApp:
         self.editor_entry_frame.bind("<Configure>", lambda e: self.editor_canvas.configure(scrollregion=self.editor_canvas.bbox("all")))
 
         def _on_mousewheel(event):
-            self.editor_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            delta_steps = 0
+            if hasattr(event, "delta") and event.delta:
+                delta_steps = int(-1 * (event.delta / 120))
+            elif getattr(event, "num", None) == 4:
+                delta_steps = -1
+            elif getattr(event, "num", None) == 5:
+                delta_steps = 1
+            if delta_steps:
+                self.editor_canvas.yview_scroll(delta_steps, "units")
 
-        self.editor_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        self.editor_canvas.bind("<MouseWheel>", _on_mousewheel)
+        self.editor_canvas.bind("<Button-4>", _on_mousewheel)
+        self.editor_canvas.bind("<Button-5>", _on_mousewheel)
+        self.editor_entry_frame.bind("<MouseWheel>", _on_mousewheel)
+        self.editor_entry_frame.bind("<Button-4>", _on_mousewheel)
+        self.editor_entry_frame.bind("<Button-5>", _on_mousewheel)
 
         # History tab
         nb.add(tab3, text="History")
@@ -294,9 +307,22 @@ class MetadataAnalyzerApp:
         
         # Bind mousewheel for scrolling
         def _on_preview_mousewheel(event):
-            self.preview_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        
-        self.preview_canvas.bind_all("<MouseWheel>", _on_preview_mousewheel)
+            delta_steps = 0
+            if hasattr(event, "delta") and event.delta:
+                delta_steps = int(-1 * (event.delta / 120))
+            elif getattr(event, "num", None) == 4:
+                delta_steps = -1
+            elif getattr(event, "num", None) == 5:
+                delta_steps = 1
+            if delta_steps:
+                self.preview_canvas.yview_scroll(delta_steps, "units")
+
+        self.preview_canvas.bind("<MouseWheel>", _on_preview_mousewheel)
+        self.preview_canvas.bind("<Button-4>", _on_preview_mousewheel)
+        self.preview_canvas.bind("<Button-5>", _on_preview_mousewheel)
+        self.report_image_label.bind("<MouseWheel>", _on_preview_mousewheel)
+        self.report_image_label.bind("<Button-4>", _on_preview_mousewheel)
+        self.report_image_label.bind("<Button-5>", _on_preview_mousewheel)
 
         controls_side = Frame(report_container, bg="#f8f9fa", width=220)
         controls_side.pack(side=RIGHT, fill=Y, padx=2, pady=2)
@@ -1938,10 +1964,19 @@ class MetadataAnalyzerApp:
                 
                 # Enable mouse wheel scrolling
                 def _on_mousewheel(event):
-                    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-                
-                canvas.bind_all("<MouseWheel>", _on_mousewheel)
-                recent_window.bind("<Destroy>", lambda e: canvas.unbind_all("<MouseWheel>"))
+                    delta_steps = 0
+                    if hasattr(event, "delta") and event.delta:
+                        delta_steps = int(-1 * (event.delta / 120))
+                    elif getattr(event, "num", None) == 4:
+                        delta_steps = -1
+                    elif getattr(event, "num", None) == 5:
+                        delta_steps = 1
+                    if delta_steps:
+                        canvas.yview_scroll(delta_steps, "units")
+
+                recent_window.bind("<MouseWheel>", _on_mousewheel, add="+")
+                recent_window.bind("<Button-4>", _on_mousewheel, add="+")
+                recent_window.bind("<Button-5>", _on_mousewheel, add="+")
                 
                 # Populate file list with improved styling
                 for idx, row in enumerate(recent_data, 1):
@@ -2300,6 +2335,12 @@ class MetadataAnalyzerApp:
             'search': StringVar(value=""),
             'auto_refresh': BooleanVar(value=False)
         }
+        dashboard_state = {
+            'refresh_after_id': None,
+            'request_token': 0,
+            'records_cache': None,
+            'risk_cache': {},
+        }
 
         # Modern gradient header with controls
         header_frame = Frame(stats_window, bg="#667eea", height=90)
@@ -2314,7 +2355,7 @@ class MetadataAnalyzerApp:
         
         # Refresh button
         refresh_btn = Button(header_content, text="⟳ Refresh", 
-                            command=lambda: refresh_dashboard(),
+                            command=lambda: schedule_refresh(force_fetch=True),
                             bg="#5a67d8", fg="white", font=("Segoe UI", 10, "bold"),
                             relief=FLAT, cursor="hand2", padx=15, pady=8)
         refresh_btn.pack(side=RIGHT, padx=5)
@@ -2341,7 +2382,7 @@ class MetadataAnalyzerApp:
                                          "Last 90 Days", "This Year"],
                                   state="readonly", width=15)
         date_combo.pack(side=LEFT, padx=5)
-        date_combo.bind('<<ComboboxSelected>>', lambda e: refresh_dashboard())
+        date_combo.bind('<<ComboboxSelected>>', lambda e: schedule_refresh())
         
         # File type filter
         Label(filter_content, text="Type:", font=("Segoe UI", 10, "bold"),
@@ -2349,18 +2390,18 @@ class MetadataAnalyzerApp:
         type_combo = ttk.Combobox(filter_content, textvariable=filter_vars['file_type'],
                                   state="readonly", width=15)
         type_combo.pack(side=LEFT, padx=5)
-        type_combo.bind('<<ComboboxSelected>>', lambda e: refresh_dashboard())
+        type_combo.bind('<<ComboboxSelected>>', lambda e: schedule_refresh())
         
         # Search box
         Label(filter_content, text="Search:", font=("Segoe UI", 10, "bold"),
               bg="white").pack(side=LEFT, padx=(20, 5))
         search_entry = ttk.Entry(filter_content, textvariable=filter_vars['search'], width=25)
         search_entry.pack(side=LEFT, padx=5)
-        search_entry.bind('<KeyRelease>', lambda e: self.root.after(500, refresh_dashboard))
+        search_entry.bind('<KeyRelease>', lambda e: schedule_refresh(delay_ms=350))
         
         # Apply filters button
         apply_btn = Button(filter_content, text="Apply Filters",
-                          command=lambda: refresh_dashboard(),
+                          command=lambda: schedule_refresh(),
                           bg="#667eea", fg="white", font=("Segoe UI", 9, "bold"),
                           relief=FLAT, cursor="hand2", padx=12, pady=5)
         apply_btn.pack(side=RIGHT, padx=5)
@@ -2388,24 +2429,37 @@ class MetadataAnalyzerApp:
         
         canvas.bind('<Configure>', update_frame_width)
 
-        # Pack canvas with full width (scrollbar hidden)
+        # Pack canvas with full width and visible vertical scrollbar
         canvas.pack(side=LEFT, fill=BOTH, expand=True, padx=0)
-        # scrollbar.pack(side=RIGHT, fill=Y)  # Hidden
+        scrollbar.pack(side=RIGHT, fill=Y)
 
         # Enable mouse wheel scrolling
         def on_mousewheel(event):
             try:
-                # Check if canvas still exists and is valid
-                if canvas.winfo_exists():
-                    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+                if not canvas.winfo_exists():
+                    return
+
+                delta_steps = 0
+                if hasattr(event, "delta") and event.delta:
+                    delta_steps = int(-1 * (event.delta / 120))
+                elif getattr(event, "num", None) == 4:
+                    delta_steps = -1
+                elif getattr(event, "num", None) == 5:
+                    delta_steps = 1
+
+                if delta_steps:
+                    canvas.yview_scroll(delta_steps, "units")
             except Exception:
-                # Silently ignore errors if canvas is destroyed
                 pass
-        
-        canvas.bind_all("<MouseWheel>", on_mousewheel)
-        
-        # Unbind mousewheel when window is destroyed to prevent errors
-        stats_window.bind("<Destroy>", lambda e: canvas.unbind_all("<MouseWheel>"))
+
+        stats_window.bind("<MouseWheel>", on_mousewheel, add="+")
+        stats_window.bind("<Button-4>", on_mousewheel, add="+")
+        stats_window.bind("<Button-5>", on_mousewheel, add="+")
+
+        def close_stats_window():
+            if stats_window.winfo_exists():
+                stats_window.destroy()
+        stats_window.protocol("WM_DELETE_WINDOW", close_stats_window)
 
         # Helper functions for filtering and calculations
         def parse_size_to_bytes(size_str):
@@ -2431,12 +2485,12 @@ class MetadataAnalyzerApp:
                 bytes_val /= 1024.0
             return f"{bytes_val:.1f} TB"
 
-        def filter_records(records):
+        def filter_records(records, criteria):
             """Apply filters to records."""
             filtered = list(records)
             
             # Date filter
-            date_range = filter_vars['date_range'].get()
+            date_range = criteria.get('date_range', 'All Time')
             if date_range != "All Time":
                 now = datetime.now()
                 if date_range == "Last 7 Days":
@@ -2450,16 +2504,24 @@ class MetadataAnalyzerApp:
                 else:
                     cutoff = datetime.min
                 
-                filtered = [r for r in filtered if len(r) > 5 and r[5] and
-                           datetime.fromisoformat(r[5]) >= cutoff]
+                date_filtered = []
+                for record in filtered:
+                    if len(record) <= 5 or not record[5]:
+                        continue
+                    try:
+                        if datetime.fromisoformat(record[5]) >= cutoff:
+                            date_filtered.append(record)
+                    except Exception:
+                        continue
+                filtered = date_filtered
             
             # File type filter
-            file_type = filter_vars['file_type'].get()
+            file_type = criteria.get('file_type', 'All Types')
             if file_type != "All Types":
                 filtered = [r for r in filtered if len(r) > 4 and r[4] == file_type]
             
             # Search filter
-            search_term = filter_vars['search'].get().lower()
+            search_term = criteria.get('search', '').lower()
             if search_term:
                 filtered = [r for r in filtered if len(r) > 2 and 
                            search_term in r[2].lower()]
@@ -2503,18 +2565,26 @@ class MetadataAnalyzerApp:
 
                 if risk_analyzer and len(record) > 7 and record[7]:
                     try:
-                        parsed_metadata = json.loads(record[7]) if isinstance(record[7], str) else (record[7] or {})
-                        record_path = record[1] if len(record) > 1 else ""
-                        risk_result = risk_analyzer.analyze_metadata(
-                            parsed_metadata,
-                            record_path,
-                            fallback_timestamps={
-                                "Created Date": datetime.fromtimestamp(os.path.getctime(record_path)).isoformat(sep=" ", timespec="seconds") if record_path and os.path.exists(record_path) else None,
-                                "Modified Date": record[6] if len(record) > 6 else None,
-                                "Extraction Date": record[5] if len(record) > 5 else None,
-                            },
+                        cache_key = (
+                            record[0] if len(record) > 0 else None,
+                            record[5] if len(record) > 5 else None,
+                            record[6] if len(record) > 6 else None,
                         )
-                        risk_level = risk_result.get('risk_level', 'LOW')
+                        risk_level = dashboard_state['risk_cache'].get(cache_key)
+                        if risk_level is None:
+                            parsed_metadata = json.loads(record[7]) if isinstance(record[7], str) else (record[7] or {})
+                            record_path = record[1] if len(record) > 1 else ""
+                            risk_result = risk_analyzer.analyze_metadata(
+                                parsed_metadata,
+                                record_path,
+                                fallback_timestamps={
+                                    "Created Date": datetime.fromtimestamp(os.path.getctime(record_path)).isoformat(sep=" ", timespec="seconds") if record_path and os.path.exists(record_path) else None,
+                                    "Modified Date": record[6] if len(record) > 6 else None,
+                                    "Extraction Date": record[5] if len(record) > 5 else None,
+                                },
+                            )
+                            risk_level = risk_result.get('risk_level', 'LOW')
+                            dashboard_state['risk_cache'][cache_key] = risk_level
                         stats['risk_counts'][risk_level] = stats['risk_counts'].get(risk_level, 0) + 1
                     except Exception:
                         pass
@@ -2530,43 +2600,101 @@ class MetadataAnalyzerApp:
             
             return stats
 
-        def refresh_dashboard():
-            """Refresh dashboard with current filters."""
+        def _cancel_pending_refresh():
+            pending = dashboard_state.get('refresh_after_id')
+            if pending is not None:
+                try:
+                    stats_window.after_cancel(pending)
+                except Exception:
+                    pass
+                dashboard_state['refresh_after_id'] = None
+
+        def schedule_refresh(delay_ms=0, force_fetch=False):
+            """Schedule a dashboard refresh, debounced for frequent filter events."""
+            _cancel_pending_refresh()
+            if delay_ms and delay_ms > 0:
+                dashboard_state['refresh_after_id'] = stats_window.after(delay_ms, lambda: refresh_dashboard(force_fetch=force_fetch))
+            else:
+                refresh_dashboard(force_fetch=force_fetch)
+
+        def refresh_dashboard(force_fetch=False):
+            """Refresh dashboard with current filters without blocking the UI."""
+            _cancel_pending_refresh()
+            if not stats_window.winfo_exists():
+                return
+
+            dashboard_state['request_token'] += 1
+            request_token = dashboard_state['request_token']
+            criteria = {
+                'date_range': filter_vars['date_range'].get(),
+                'file_type': filter_vars['file_type'].get(),
+                'search': filter_vars['search'].get(),
+            }
+
             for widget in scrollable_frame.winfo_children():
                 widget.destroy()
-            
-            try:
-                all_records = db.fetch_all_metadata()
-                all_types = set(r[4] for r in all_records if len(r) > 4)
-                type_combo['values'] = ["All Types"] + sorted(all_types)
-                
-                filtered = filter_records(all_records)
-                stats = calculate_enhanced_stats(filtered)
-                
-                if stats is None or stats['total'] == 0:
-                    empty_frame = Frame(scrollable_frame, bg="white", relief=FLAT)
-                    empty_frame.pack(fill=BOTH, expand=True, padx=20, pady=50)
-                    Label(empty_frame, text="No matching data",
-                          font=("Segoe UI", 16, "bold"), bg="white", fg="#888").pack(pady=(30, 10))
-                    Label(empty_frame, text="Adjust filters or extract more files!",
-                          font=("Segoe UI", 12), bg="white", fg="#aaa").pack(pady=(0, 30))
-                    return
-                
-                render_enhanced_dashboard(stats, filtered)
-            except Exception as e:
-                error_frame = Frame(scrollable_frame, bg="white", relief=FLAT)
-                error_frame.pack(fill=BOTH, expand=True, padx=20, pady=50)
-                Label(error_frame, text="Error Loading Statistics",
-                      font=("Segoe UI", 16, "bold"), bg="white", fg="#e74c3c").pack(pady=(30, 10))
-                Label(error_frame, text=str(e),
-                      font=("Segoe UI", 11), bg="white", fg="#95a5a6").pack(pady=(0, 30))
+            loading_frame = Frame(scrollable_frame, bg="white", relief=FLAT)
+            loading_frame.pack(fill=BOTH, expand=True, padx=20, pady=50)
+            Label(loading_frame, text="Loading statistics...",
+                  font=("Segoe UI", 14, "bold"), bg="white", fg="#667eea").pack(pady=(30, 10))
+
+            refresh_btn.config(state=DISABLED, text="Refreshing...")
+
+            def worker():
+                try:
+                    use_cached = dashboard_state['records_cache'] is not None and not force_fetch
+                    all_records = dashboard_state['records_cache'] if use_cached else db.fetch_all_metadata()
+                    all_types = sorted({r[4] for r in all_records if len(r) > 4})
+                    filtered = filter_records(all_records, criteria)
+                    stats = calculate_enhanced_stats(filtered)
+                    payload = (all_records, all_types, filtered, stats, None)
+                except Exception as err:
+                    payload = (None, None, None, None, err)
+
+                def apply_result():
+                    if not stats_window.winfo_exists():
+                        return
+                    if request_token != dashboard_state['request_token']:
+                        return
+
+                    refresh_btn.config(state=NORMAL, text="⟳ Refresh")
+                    for widget in scrollable_frame.winfo_children():
+                        widget.destroy()
+
+                    all_records, all_types, filtered, stats, error = payload
+                    if error is not None:
+                        error_frame = Frame(scrollable_frame, bg="white", relief=FLAT)
+                        error_frame.pack(fill=BOTH, expand=True, padx=20, pady=50)
+                        Label(error_frame, text="Error Loading Statistics",
+                              font=("Segoe UI", 16, "bold"), bg="white", fg="#e74c3c").pack(pady=(30, 10))
+                        Label(error_frame, text=str(error),
+                              font=("Segoe UI", 11), bg="white", fg="#95a5a6").pack(pady=(0, 30))
+                        return
+
+                    dashboard_state['records_cache'] = all_records
+                    type_combo['values'] = ["All Types"] + all_types
+
+                    if stats is None or stats['total'] == 0:
+                        empty_frame = Frame(scrollable_frame, bg="white", relief=FLAT)
+                        empty_frame.pack(fill=BOTH, expand=True, padx=20, pady=50)
+                        Label(empty_frame, text="No matching data",
+                              font=("Segoe UI", 16, "bold"), bg="white", fg="#888").pack(pady=(30, 10))
+                        Label(empty_frame, text="Adjust filters or extract more files!",
+                              font=("Segoe UI", 12), bg="white", fg="#aaa").pack(pady=(0, 30))
+                        return
+
+                    render_enhanced_dashboard(stats, filtered)
+
+                stats_window.after(0, apply_result)
+
+            threading.Thread(target=worker, daemon=True).start()
 
         def toggle_auto_refresh():
             """Toggle auto-refresh functionality."""
             if filter_vars['auto_refresh'].get():
                 def auto_update():
                     if filter_vars['auto_refresh'].get():
-                        refresh_dashboard()
+                        schedule_refresh(force_fetch=True)
                         stats_window.after(30000, auto_update)
                 stats_window.after(30000, auto_update)
 
@@ -2681,6 +2809,7 @@ class MetadataAnalyzerApp:
             chart_canvas1 = FigureCanvasTkAgg(fig1, master=charts_frame1)
             chart_canvas1.draw()
             chart_canvas1.get_tk_widget().pack(fill=BOTH, expand=True, padx=10, pady=10)
+            plt.close(fig1)
 
             # Metadata Insights - maximize space usage
             insights_section = Frame(scrollable_frame, bg="#f0f2f5")
@@ -2777,44 +2906,7 @@ class MetadataAnalyzerApp:
                 row_frame.bind("<Leave>", leave)
 
         # Initial load
-        try:
-            all_records = db.fetch_all_metadata()
-            if len(all_records) == 0:
-                empty_frame = Frame(scrollable_frame, bg="white", relief=FLAT)
-                empty_frame.pack(fill=BOTH, expand=True, padx=20, pady=50)
-                Label(empty_frame, text="No data available", 
-                      font=("Segoe UI", 16, "bold"), bg="white", fg="#888").pack(pady=(30, 10))
-                Label(empty_frame, text="Extract some files first to see statistics!", 
-                      font=("Segoe UI", 12), bg="white", fg="#aaa").pack(pady=(0, 30))
-                
-                # Close button
-                button_frame = Frame(stats_window, bg="#f0f2f5", height=60)
-                button_frame.pack(fill=X, side=BOTTOM)
-                button_frame.pack_propagate(False)
-                
-                close_btn = Button(button_frame, text="Close Dashboard",
-                                  command=lambda: [canvas.unbind_all("<MouseWheel>"), stats_window.destroy()],
-                                  bg="#667eea", fg="white", font=("Segoe UI", 11, "bold"),
-                                  relief=FLAT, cursor="hand2", padx=30, pady=10)
-                close_btn.pack(pady=10)
-                return
-            
-            # Populate filter options
-            all_types = set(r[4] for r in all_records if len(r) > 4)
-            type_combo['values'] = ["All Types"] + sorted(all_types)
-            
-            # Render initial dashboard
-            filtered = filter_records(all_records)
-            stats = calculate_enhanced_stats(filtered)
-            render_enhanced_dashboard(stats, filtered)
-            
-        except Exception as e:
-            error_frame = Frame(scrollable_frame, bg="white", relief=FLAT)
-            error_frame.pack(fill=BOTH, expand=True, padx=20, pady=50)
-            Label(error_frame, text="Error Loading Statistics",
-                  font=("Segoe UI", 16, "bold"), bg="white", fg="#e74c3c").pack(pady=(30, 10))
-            Label(error_frame, text=str(e),
-                  font=("Segoe UI", 11), bg="white", fg="#95a5a6").pack(pady=(0, 30))
+        schedule_refresh(force_fetch=True)
 
         # Close button
         button_frame = Frame(stats_window, bg="#f0f2f5", height=60)
@@ -2822,7 +2914,7 @@ class MetadataAnalyzerApp:
         button_frame.pack_propagate(False)
         
         close_btn = Button(button_frame, text="Close Dashboard",
-                          command=lambda: [canvas.unbind_all("<MouseWheel>"), stats_window.destroy()],
+                          command=close_stats_window,
                           bg="#667eea", fg="white", font=("Segoe UI", 11, "bold"),
                           relief=FLAT, cursor="hand2", padx=30, pady=10,
                           activebackground="#764ba2", activeforeground="white")
