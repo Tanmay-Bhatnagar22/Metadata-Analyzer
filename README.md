@@ -139,6 +139,38 @@ Metadata Analyser/
 ```
 
 ## Architecture
+```
+                 ┌────────────────────────┐
+                 │        USER GUI        │
+                 │   (Tkinter Interface)  │
+                 └──────────┬─────────────┘
+                            │
+        ┌───────────────────┼───────────────────┐
+        │                   │                   │
+        ▼                   ▼                   ▼
+┌───────────────┐   ┌──────────────┐   ┌──────────────┐
+│ File Loader   │   │ History UI   │   │ Dashboard UI │
+│ (Select File) │   │ (Search DB)  │   │(Charts/Stats)|
+└───────┬───────┘   └──────┬───────┘   └──────┬───────┘
+        │                  │                  │
+        ▼                  ▼                  ▼
+┌──────────────────────────────────────────────────────┐
+│                CORE PROCESSING LAYER                 │
+└──────────────────────────────────────────────────────┘
+        │                   │                   │
+        ▼                   ▼                   ▼
+
+┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│ extractor.py  │   │ risk_analyzer │   │   db.py       │
+│ Metadata Read │   │ Risk Scoring  │   │ SQLite Storage│
+└───────┬───────┘   └──────┬────────┘   └──────┬────────┘
+        │                  │                   │
+        ▼                  ▼                   ▼
+┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│  editor.py    │   │ report.py     │   │ analytics UI  │
+│ Write-Back    │   │ Export System │   │ Charts/Stats  │
+└───────────────┘   └───────────────┘   └───────────────┘
+```
 
 ### src/main.py
 - Entry point that launches `run_gui()`.
@@ -172,6 +204,35 @@ Metadata Analyser/
 ### src/risk_analyzer.py
 - `PrivacyForensicAnalyzer` provides per-file and batch risk analysis.
 - Generates risk score, reasons, timeline, and anomaly flags.
+
+```
+USER selects file
+        │
+        ▼
+GUI → extractor.py
+        │
+        ▼
+Metadata extracted
+        │
+        ├──► Saved to db.py
+        │
+        ├──► Sent to risk_analyzer.py
+        │         │
+        │         ▼
+        │     Risk score + timeline
+        │
+        ├──► Displayed in GUI
+        │
+        ├──► Optional editing → editor.py
+        │         │
+        │         ▼
+        │     Metadata written back
+        │
+        └──► Export request → report.py
+                  │
+                  ▼
+           PDF / CSV / JSON / Excel
+```
 
 ## Requirements
 
