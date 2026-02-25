@@ -121,7 +121,7 @@ class MetadataAnalyzerApp:
     def _init_window(self) -> None:
         """Initialize main window with modern styling and centered positioning."""
         self.root = Tk()
-        self.root.title("TraceLens: A Comprehensive Metadata Analysis Toolkit")
+        self.root.title("TraceLens: Intelligent Metadata Analysis & Privacy Inspection Toolkit")
         self.root.config(bg="#f5f7fa")
 
         screen_width = self.root.winfo_screenwidth()

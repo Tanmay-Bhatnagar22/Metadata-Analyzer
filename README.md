@@ -1,4 +1,4 @@
-# TraceLens: A Comprehensive Metadata Analysis Toolkit
+# TraceLens: Intelligent Metadata Analysis & Privacy Inspection Toolkit
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
