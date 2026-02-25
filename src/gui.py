@@ -897,7 +897,7 @@ class MetadataAnalyzerApp:
             return
         self.c1_text.config(state=NORMAL)
         self.c1_text.delete(1.0, END)
-        self.c1_text.insert(END, "Welcome to TraceLens\n", "header")
+        self.c1_text.insert(END, "Welcome to TraceLens: A Comprehensive Metadata Analysis Toolkit\n", "header")
         self.c1_text.insert(END, "\nThis tool allows you to extract & edit metadata from various file types including images, documents, and audio files.\n\n")
         self.c1_text.insert(END, "Getting Started:\n", "bold")
         self.c1_text.insert(END, "1. Click 'Choose File' to select a file\n2. Click 'Extract' to analyze its metadata\n3. Use 'Generate report' to export the results\n\n")
