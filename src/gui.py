@@ -1,4 +1,4 @@
-"""GUI module for Metadata Analyzer application.
+"""GUI module for TraceLens application.
 
 Provides Tkinter-based interface with tabs for file extraction, editing, and history management.
 """
@@ -40,7 +40,7 @@ except ImportError:  # pragma: no cover - optional dependency
 
 
 class MetadataAnalyzerApp:
-    """Class-based GUI application for Metadata Analyzer.
+    """Class-based GUI application for TraceLens.
     
     Provides Tkinter interface with tabs for:
     - Extractor: Extract metadata from files
@@ -121,7 +121,7 @@ class MetadataAnalyzerApp:
     def _init_window(self) -> None:
         """Initialize main window with modern styling and centered positioning."""
         self.root = Tk()
-        self.root.title("Metadata Analyzer")
+        self.root.title("TraceLens: A Comprehensive Metadata Analysis Toolkit")
         self.root.config(bg="#f5f7fa")
 
         screen_width = self.root.winfo_screenwidth()
@@ -141,7 +141,7 @@ class MetadataAnalyzerApp:
     def _create_widgets(self) -> None:
         """Build UI components: title, notebook tabs (Extractor, Editor, History), controls, and status bar."""
         # Title label
-        title_label = Label(self.root, text="Metadata Analyzer", bg="#f5f7fa", font=("Segoe UI", 24, "bold"), fg="#1a1a1a")
+        title_label = Label(self.root, text="TraceLens", bg="#f5f7fa", font=("Segoe UI", 24, "bold"), fg="#1a1a1a")
         title_label.place(x=10, y=10, width=self.window_width - 20, height=40)
 
         # Configure modern flat design theme
@@ -897,7 +897,7 @@ class MetadataAnalyzerApp:
             return
         self.c1_text.config(state=NORMAL)
         self.c1_text.delete(1.0, END)
-        self.c1_text.insert(END, "Welcome to Metadata Analyzer\n", "header")
+        self.c1_text.insert(END, "Welcome to TraceLens\n", "header")
         self.c1_text.insert(END, "\nThis tool allows you to extract & edit metadata from various file types including images, documents, and audio files.\n\n")
         self.c1_text.insert(END, "Getting Started:\n", "bold")
         self.c1_text.insert(END, "1. Click 'Choose File' to select a file\n2. Click 'Extract' to analyze its metadata\n3. Use 'Generate report' to export the results\n\n")
@@ -1763,18 +1763,18 @@ class MetadataAnalyzerApp:
 
     def menu_show_about(self) -> None:
         about_text = (
-            "Metadata Analyzer\n\n"
+            "TraceLens\n\n"
             "Version 1.0\n\n"
             "A comprehensive tool for extracting, editing, and analyzing\n"
             "metadata from various file types.\n\n"
             "Supports images, documents, audio files, and more.\n\n"
-            "© 2026 Metadata Analyzer Project"
+            "© 2026 TraceLens Project"
         )
-        messagebox.showinfo("About Metadata Analyzer", about_text)
+        messagebox.showinfo("About TraceLens", about_text)
 
     def menu_show_documentation(self) -> None:
         doc_text = (
-            "Metadata Analyzer - Quick Guide\n\n"
+            "TraceLens - Quick Guide\n\n"
             "1. EXTRACTING METADATA:\n"
             "   • Click 'Choose File' or File > Open File\n"
             "   • Click 'Extract' to analyze metadata\n\n"
@@ -2931,12 +2931,12 @@ class MetadataAnalyzerApp:
     def menu_check_updates(self) -> None:
         messagebox.showinfo(
             "Check for Updates",
-            "You are using Metadata Analyzer v1.0\n\nAlready up to date!\n\nFor the latest version, visit the project repository.",
+            "You are using TraceLens v1.0\n\nAlready up to date!\n\nFor the latest version, visit the project repository.",
         )
 
     def menu_credits(self) -> None:
         credits_text = (
-            "Metadata Analyzer\n\n"
+            "TraceLens\n\n"
             "Development Team:\n"
             "  • Tanmay Bhatnagar\n"
         )
@@ -3090,7 +3090,7 @@ class MetadataAnalyzerApp:
         help_menu.add_separator()
         help_menu.add_command(label="Check for Updates", command=self.menu_check_updates)
         help_menu.add_separator()
-        help_menu.add_command(label="About Metadata Analyzer", command=self.menu_show_about)
+        help_menu.add_command(label="About TraceLens", command=self.menu_show_about)
         help_menu.add_command(label="Credits", command=self.menu_credits)
         help_menu.add_command(label="Report an Issue", command=self.menu_report_issue)
         help_menu.add_command(label="Contact Support", command=self.menu_contact_support)

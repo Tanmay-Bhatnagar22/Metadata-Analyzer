@@ -1,4 +1,4 @@
-# Metadata Analyzer
+# TraceLens: A Comprehensive Metadata Analysis Toolkit
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -7,7 +7,7 @@
 ![GUI](https://img.shields.io/badge/GUI-Tkinter-ff69b4.svg)
 ![Database](https://img.shields.io/badge/database-SQLite-003b57.svg)
 
-Metadata Analyzer is a desktop application built with Python and Tkinter for extracting, editing, analyzing, and exporting file metadata. It includes a local SQLite history, report generation, and a privacy/forensic risk analysis workflow.
+TraceLens is a desktop application built with Python and Tkinter for extracting, editing, analyzing, and exporting file metadata. It includes a local SQLite history, report generation, and a privacy/forensic risk analysis workflow.
 
 ## Table of Contents
 

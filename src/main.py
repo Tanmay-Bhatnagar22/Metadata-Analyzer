@@ -1,10 +1,10 @@
-"""Main entry point for Metadata Analyzer application."""
+"""Main entry point for TraceLens application."""
 
 from gui import run_gui
 
 
 def main() -> None:
-    """Launch the Metadata Analyzer GUI application.
+    """Launch the TraceLens GUI application.
     
     Entry point for the application. Initializes and runs the Tkinter-based GUI.
     """

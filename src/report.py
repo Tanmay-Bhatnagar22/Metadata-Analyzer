@@ -174,7 +174,7 @@ class MetadataReporter:
             spaceAfter=30,
             alignment=1
         )
-        story.append(Paragraph("Metadata Analyzer Report", title_style))
+        story.append(Paragraph("TraceLens Report", title_style))
         story.append(Spacer(1, 20))
 
         date_style = ParagraphStyle(
