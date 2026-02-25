@@ -248,8 +248,8 @@ All runtime dependencies are listed in `requirements.txt`.
 Clone the repository:
 
 ```bash
-git clone https://github.com/Tanmay-Bhatnagar22/Metadata-Analyzer.git
-cd Metadata-Analyzer
+git clone https://github.com/Tanmay-Bhatnagar22/TraceLens.git
+cd TraceLens
 ```
 
 Create virtual environment:
